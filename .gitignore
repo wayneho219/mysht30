@@ -1,0 +1,12 @@
+# kernel module 編譯產物
+*.o
+*.ko
+*.mod
+*.mod.c
+.*.cmd
+modules.order
+Module.symvers
+
+# clangd
+compile_commands.json
+.cache/
