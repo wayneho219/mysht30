@@ -5,37 +5,12 @@
 #include <linux/delay.h>
 #include <linux/mod_devicetable.h>
 
+#include "mysht30_calc.h" // CRC、6 bytes 解析、溫濕度換算（和 test/test_calc.c 共用）
+
 struct mysht30_data {
 	struct i2c_client *client;
 	struct mutex lock;
 };
-
-static u8 mysht30_crc8(const u8 *buf, size_t len)
-{
-	u8 crc = 0xFF;
-	for (size_t i = 0; i < len; i++) {
-		crc ^= buf[i];
-		for (size_t j = 0; j < 8; j++){
-			if ((crc & 0x80) == 0x80) {
-				crc <<= 1;
-				crc ^= 0x31;
-			} else {
-				crc <<= 1;
-			}
-		}
-	}
-	return crc;
-}
-
-static int mysht30_temp_mc(u16 raw)
-{
-	return -45000 + ((s64)175000 * raw) / 65535;
-}
-
-static int mysht30_humidity_pcm(u16 raw)
-{
-	return (s64)100000 * raw / 65535;
-}
 
 static int mysht30_measure(struct mysht30_data *data, u16 *raw_t, u16 *raw_rh)
 {
@@ -59,22 +34,7 @@ static int mysht30_measure(struct mysht30_data *data, u16 *raw_t, u16 *raw_rh)
 			goto unlock;
 		}
 
-		// 檢查溫度 crc
-		if (mysht30_crc8(buf, 2) != buf[2]) {
-			ret = -EIO;
-			goto unlock;
-		}
-
-		// 檢查濕度 crc
-		if (mysht30_crc8(buf + 3, 2) != buf[5]) {
-			ret = -EIO;
-			goto unlock;
-		}
-
-		*raw_t = (buf[0] << 8) | buf[1]; // 溫度
-		*raw_rh = (buf[3] << 8) | buf[4]; // 溼度
-
-		ret = 0;
+		ret = mysht30_parse(buf, raw_t, raw_rh); // 驗兩組 CRC 並組出 raw 值；CRC 錯回傳 -EIO
 
 unlock:
 		mutex_unlock(&data->lock);

@@ -7,6 +7,9 @@
 modules.order
 Module.symvers
 
+# host 單元測試執行檔
+test/test_calc
+
 # clangd
 compile_commands.json
 .cache/
